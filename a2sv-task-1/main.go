@@ -19,11 +19,16 @@ func (s *Student) AddSubject(subject Subject) {
 	s.subjects = append(s.subjects, subject)
 }
 
-func (s *Student) PrintSubjects() {
+func (s *Student) PrintSubjects() {	
 	fmt.Println("You have the following subjects:")
 	fmt.Println("Subject\t\t Grade")
 	for i, subject := range s.subjects {
 		fmt.Printf("%d. %s\t\t %d\n", i+1, subject.name, subject.grade)
+	}
+
+	average := s.CalculateAverageGrade()
+	if average != -1 {
+		fmt.Printf("\n##Average grade for %s is: %.2f\n", s.name, average)
 	}
 }
 func (s *Student) CalculateAverageGrade() float64 {
@@ -44,12 +49,11 @@ func ClearScreen() {
 	fmt.Print("\033[H\033[2J")
 	time.Sleep(100 * time.Millisecond)
 }
-func main() {
+
+func WelcomeMessage() (name string, no_subject int) {
 	fmt.Println("\n\n***********Welcome to the Student Grade Calculator Console App!! ************")
 	fmt.Printf("Please Enter Your name:\n")
-	var name string
 	fmt.Scan(&name)
-	var no_subject int
 	isValidNoSubject := false
 	for !isValidNoSubject {
 		fmt.Printf("Please Enter Your number of subjects:\n")
@@ -60,11 +64,15 @@ func main() {
 		}
 	}
 	ClearScreen()
-	// Welcome message
-	fmt.Printf("Welcome %s, you have chosen to enter %d subjects.\n", name, no_subject)
+	return
+}
 
+func main() {
+
+	name, no_subject := WelcomeMessage()
+	fmt.Printf("Welcome %s, you have chosen to enter %d subjects.\n", name, no_subject)
 	student := Student{name: name, no_subject: no_subject}
-	for i := 0; i < no_subject; i++ {
+	for i := range no_subject {
 		var subject string
 		var grade int
 		fmt.Printf("Subject %d Name:\n", i+1)
@@ -81,8 +89,4 @@ func main() {
 	}
 	ClearScreen()
 	student.PrintSubjects()
-	average := student.CalculateAverageGrade()
-	if average != -1 {
-		fmt.Printf("\n##Average grade for %s is: %.2f\n", student.name, average)
-	}
 }
