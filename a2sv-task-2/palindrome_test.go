@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsPalindrome(t *testing.T) {
@@ -19,8 +21,7 @@ func TestIsPalindrome(t *testing.T) {
 
 	for _, test := range tests {
 		result := IsPalindrome(NormalizeString(strings.Join(strings.Fields(test.input), "")))
-		if result != test.expected {
-			t.Errorf("For input '%s', expected %v but got %v", test.input, test.expected, result)
-		}
+		assert.Equal(t, test.expected, result, "For input '%s', expected %v but got %v", test.input, test.expected, result)
 	}
+	
 }
