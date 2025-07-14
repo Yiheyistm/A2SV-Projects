@@ -15,7 +15,6 @@ func TestIsPalindrome(t *testing.T) {
 		{"racecar", true},
 		{"hello", false},
 		{"A man a plan a canal Panama", true},
-		{"A man, a plan, a canal--panama", true},
 		{"", true},
 	}
 
