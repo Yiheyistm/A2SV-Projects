@@ -32,7 +32,8 @@ func main() {
 	fmt.Print("Enter a string: ")
 	text, _ := reader.ReadString('\n')
 	text = strings.TrimSpace(text) 
-
+    array := strings.Split(text, " ")
+	fmt.Println("Array:", array)
 	normalizedText := normalizeString(text)
 	fmt.Println("Word Frequency:", countWordsFrequency(normalizedText))
    
