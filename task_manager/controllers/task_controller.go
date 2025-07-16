@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"task_manager/models"
@@ -25,11 +26,11 @@ func GetTasks(c *gin.Context) {
 func GetTask(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
 		return
 	}
 
-	task, err := services.GetById(id)
+	_, task, err := services.GetById(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"message": "task not found"})
 		return
@@ -44,7 +45,7 @@ func CreateTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
-	err := services.Create(newTask)
+	err := services.Create(&newTask)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create event"})
 		return
@@ -56,22 +57,23 @@ func CreateTask(c *gin.Context) {
 func UpdateTask(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
 		return
 	}
 
-	existedTask, err := services.GetById(id)
-	if err != nil {
+	index, existedTask, err := services.GetById(id)
+	fmt.Println(existedTask)
+	if err != nil || index < 0 {
 		c.JSON(http.StatusNotFound, gin.H{"message": "task not found"})
 		return
 	}
-	updatedTask := models.Task{}
-	if err := c.ShouldBindJSON(&updatedTask); err != nil {
+	updatedTask := &models.Task{}
+	if err := c.ShouldBindJSON(updatedTask); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 	updatedTask.Id = existedTask.Id
-	err = services.Update(updatedTask)
+	err = services.Update(index, updatedTask)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update task"})
 		return
@@ -83,18 +85,16 @@ func UpdateTask(c *gin.Context) {
 func DeleteTask(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
 		return
 	}
 
-	existedTask, err := services.GetById(id)
-	if err != nil {
+	index, _, err := services.GetById(id)
+	if err != nil || index < 0 {
 		c.JSON(http.StatusNotFound, gin.H{"message": "task not found"})
 		return
 	}
-	deleteTask := models.Task{}
-	deleteTask.Id = existedTask.Id
-	err = services.Delete(deleteTask)
+	err = services.Delete(index)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
 		return

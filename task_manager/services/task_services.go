@@ -16,28 +16,34 @@ func GetAllTasks() []models.Task {
 	return tasks
 }
 
-func GetById(id int) (models.Task, error) {
+func GetById(id int) (int, models.Task, error) {
 
-	for _, task := range tasks {
+	for index, task := range tasks {
 		if task.Id == id {
-			return task, nil
+			return index, task, nil
 		}
 	}
-	return models.Task{}, errors.New("task not found")
+	return -1, models.Task{}, errors.New("task not found")
 }
 
-func Create(task models.Task) error {
-	task.Id = len(tasks) + 1
-	tasks = append(tasks, task)
+func Create(task *models.Task) error {
+	task.Id = tasks[len(tasks)-1].Id + 1
+	tasks = append(tasks, *task)
 	return nil
 }
 
-func Update(task models.Task) error {
-	tasks[task.Id] = task
+func Update(index int, updateTask *models.Task) error {
+	if index < 0 || index >= len(tasks) {
+		return errors.New("task not found")
+	}
+	tasks[index] = *updateTask
 	return nil
 }
 
-func Delete(task models.Task) error {
-	tasks = append(tasks[:task.Id], tasks[task.Id+1:]...)
+func Delete(index int) error {
+	if index < 0 || index >= len(tasks) {
+		return errors.New("task not found")
+	}
+	tasks = append(tasks[:index], tasks[index+1:]...)
 	return nil
 }

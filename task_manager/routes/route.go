@@ -13,7 +13,7 @@ func SetupRouter() *gin.Engine {
 	r.GET("/tasks", controllers.GetTasks)
 	r.GET("/tasks/:id", controllers.GetTask)
 	r.POST("/tasks", controllers.CreateTask)
-	r.PATCH("/tasks/:id", controllers.UpdateTask)
+	r.PUT("/tasks/:id", controllers.UpdateTask)
 	r.DELETE("/tasks/:id", controllers.DeleteTask)
 
 	return r
