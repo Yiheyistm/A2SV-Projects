@@ -7,10 +7,8 @@ Task Manager is a Go-based application designed to help users manage tasks effic
 ## Features
 
 - **Task CRUD:** Create, read, update, and delete tasks.
-- **User Management:** Assign tasks to users and manage user roles.
 - **Status Tracking:** Track task progress with status updates.
 - **Due Dates:** Set and manage deadlines for tasks.
-- **Filtering & Search:** Find tasks by status, assignee, or due date.
 
 ## Installation
 
