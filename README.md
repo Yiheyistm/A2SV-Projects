@@ -27,7 +27,3 @@ This repository contains multiple projects related to A2SV tasks. Each project i
 ## Contributing
 
 Contributions are welcome! Please open issues or submit pull requests for improvements.
-
-## License
-
-This repository is licensed under the MIT License.
