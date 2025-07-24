@@ -20,7 +20,7 @@ type UserServicesImpl struct {
 func NewUserServicesImpl() UserServices {
 	url := config.GetEnvString("MONGO_URI", "mongodb://localhost:27017")
 	db := config.GetEnvString("MONGO_DB_NAME", "")
-	collName := config.GetEnvString("MONGO_COLLECTION_NAME", "users")
+	collName := config.GetEnvString("MONGO_COLLECTION_USERS", "users")
 	collection := config.ConnectDB(url, db, collName)
 	config.CreateUserIndexes(collection)
 	return &UserServicesImpl{
