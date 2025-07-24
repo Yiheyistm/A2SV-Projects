@@ -281,12 +281,12 @@ The API relies on environment variables for configuration, loaded via the `confi
 | APP_ENV                   | Application environment           | development                     |
 | SERVER_ADDRESS            | Server address and port           | :8080                           |
 | CONTEXT_TIMEOUT           | Request context timeout (seconds) | 2                               |
-| DB_USER                   | MongoDB user                      | abeto                           |
+| DB_USER                   | MongoDB user                      | nicko                           |
 | DB_HOST                   | MongoDB host                      | go-mongo                        |
 | DB_PORT                   | MongoDB port                      | 27017                           |
 | DB_TASK_COLLECTION        | Task collection name              | tasks                           |
 | DB_USER_COLLECTION        | User collection name              | users                           |
-| DB_PASS                   | MongoDB password                  | qwe123                          |
+| DB_PASS                   | MongoDB password                  | 123456                          |
 | DB_NAME                   | MongoDB database name             | task_manager                    |
 | ACCESS_TOKEN_EXPIRY_HOUR  | Access token expiry (hours)       | 2                               |
 | REFRESH_TOKEN_EXPIRY_HOUR | Refresh token expiry (hours)      | 168                             |
