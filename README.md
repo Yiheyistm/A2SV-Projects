@@ -5,15 +5,16 @@ This repository contains multiple projects related to A2SV tasks. Each project i
 ## Projects
 
 - **Project 1:**
-  Description: Avg calcualator.
+  Description: Avg calculator.
 
 - **Project 2:**
   Description: Palindrome and word frequency counter.
 
 - **Project 3:**
   Description: [Library management Documentation](library_management/docs/documentation.md).
+
 - **Project 4:**
-  Description: [Task management Documentation](task_manager/docs/documentation.md).
+  Description: [Task Manager Clean Architecture Documentation](task_manager_clean_arch/docs/documentation.md).
 
 ## Getting Started
 
@@ -26,4 +27,4 @@ This repository contains multiple projects related to A2SV tasks. Each project i
 
 ## Contributing
 
-Contributions are welcome! Please open issues or submit pull requests for improvements.
+Contributions are welcome! Please open issues or submit pull requests
