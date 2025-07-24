@@ -1,4 +1,3 @@
-// internal/infrastructure/security/jwt_service.go
 package security
 
 import (
@@ -26,7 +25,7 @@ func NewJWTService(accessSecret, refreshSecret string, accessExpiry, refreshExpi
 	}
 }
 
-func (s *JwtService) GenerateTokens(user domain.User) (domain.RefreshTokenResponse, error) {
+func (s *JwtService) GenerateTokens(user domain.User) (domain.RefreshToken, error) {
 	fmt.Println(s, user)
 	accessClaims := jwt.MapClaims{
 		"sub":      user.ID,
@@ -38,11 +37,11 @@ func (s *JwtService) GenerateTokens(user domain.User) (domain.RefreshTokenRespon
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	accessTokenStr, err := accessToken.SignedString([]byte(s.accessSecret))
 	if err != nil {
-		return domain.RefreshTokenResponse{}, err
+		return domain.RefreshToken{}, err
 	}
 
 	refreshClaims := jwt.MapClaims{
-		"sub":      user.ID.Hex(),
+		"sub":      user.ID,
 		"username": user.Username,
 		"exp":      time.Now().Add(s.refreshExpiry).Unix(),
 		"iat":      time.Now().Unix(),
@@ -50,10 +49,10 @@ func (s *JwtService) GenerateTokens(user domain.User) (domain.RefreshTokenRespon
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	refreshTokenStr, err := refreshToken.SignedString([]byte(s.refreshSecret))
 	if err != nil {
-		return domain.RefreshTokenResponse{}, err
+		return domain.RefreshToken{}, err
 	}
 
-	return domain.RefreshTokenResponse{
+	return domain.RefreshToken{
 		AccessToken:  accessTokenStr,
 		RefreshToken: refreshTokenStr,
 	}, nil

@@ -8,19 +8,18 @@ import (
 )
 
 type Task struct {
-	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	Title       string             `json:"title" bson:"title" validate:"required"`
-	CreatedBy   string             `json:"created_by" bson:"created_by"`
-	Description string             `json:"description" bson:"description"`
-	DueDate     time.Time          `json:"due_date" bson:"due_date" validate:"required"`
-	Status      string             `json:"status" bson:"status" validate:"oneof=pending completed"`
+	ID          primitive.ObjectID
+	Title       string
+	CreatedBy   string
+	Description string
+	DueDate     time.Time
+	Status      string
 }
 
 type StatusCount struct {
 	Status string `bson:"_id"`
 	Count  int    `bson:"count"`
 }
-
 
 type TaskRepository interface {
 	GetAll(context.Context) ([]Task, error)
@@ -36,7 +35,7 @@ type TaskRepository interface {
 	GetTaskCountByStatus(context.Context) ([]StatusCount, error)
 }
 
-type TaskUseCase interface {
+type ITaskUseCase interface {
 	GetAll() ([]Task, error)
 	GetById(string) (Task, error)
 	GetByIdAndUser(string, string) (Task, error)

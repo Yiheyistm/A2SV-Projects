@@ -9,17 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yiheyistm/task_manager/internal/domain"
 	"github.com/yiheyistm/task_manager/internal/infrastructure/security"
+	"github.com/yiheyistm/task_manager/internal/interfaces/http/dto"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
-	UserUsecase domain.UserUseCase
-	TaskUsecase domain.TaskUseCase
+	UserUsecase domain.IUserUseCase
+	TaskUsecase domain.ITaskUseCase
 	JwtService  *security.JwtService
 }
 
 func (uh *UserHandler) RegisterRequest(c *gin.Context) {
-	var newUser domain.User
+	var newUser dto.UserRequest
 	if err := c.ShouldBindJSON(&newUser); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -51,11 +52,11 @@ func (uh *UserHandler) RegisterRequest(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register user"})
 		return
 	}
-	c.JSON(http.StatusCreated, user)
+	c.JSON(http.StatusCreated, dto.FromDomainUserToResponse(&user))
 }
 
 func (uh *UserHandler) LoginRequest(c *gin.Context) {
-	var loginRequest domain.LoginRequest
+	var loginRequest dto.LoginRequest
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -75,7 +76,6 @@ func (uh *UserHandler) LoginRequest(c *gin.Context) {
 	} else {
 		user, err = uh.UserUsecase.GetByUsername(loginRequest.Identifier)
 	}
-	fmt.Println("User:", user, "Error:", err)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
@@ -92,7 +92,7 @@ func (uh *UserHandler) LoginRequest(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-	c.JSON(http.StatusOK, domain.LoginResponse(response))
+	c.JSON(http.StatusOK, dto.LoginResponse(response))
 }
 
 // TODO: Implement get all users, update user, get all user tasks, etc.
@@ -104,7 +104,7 @@ func (uh *UserHandler) GetAllUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"users": users})
+	c.JSON(http.StatusOK, gin.H{"users": dto.FromDomainUserToResponseList(users)})
 }
 
 func (uh *UserHandler) GetUser(c *gin.Context) {
@@ -119,7 +119,7 @@ func (uh *UserHandler) GetUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"user": user})
+	c.JSON(http.StatusOK, gin.H{"user": dto.FromDomainUserToResponse(user)})
 }
 
 // GetUserTasks

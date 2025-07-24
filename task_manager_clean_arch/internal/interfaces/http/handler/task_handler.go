@@ -6,11 +6,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/yiheyistm/task_manager/internal/domain"
+	"github.com/yiheyistm/task_manager/internal/interfaces/http/dto"
 )
 
 type TaskHandler struct {
-	TaskUsecase domain.TaskUseCase
-	UserUsecase domain.UserUseCase
+	TaskUsecase domain.ITaskUseCase
+	UserUsecase domain.IUserUseCase
 }
 
 var validate = validator.New()
@@ -22,7 +23,7 @@ func (th *TaskHandler) GetTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve tasks"})
 		return
 	}
-	c.JSON(http.StatusOK, tasks)
+	c.JSON(http.StatusOK, dto.FromDomainTaskToResponseList(tasks))
 }
 
 // Get a specific task by ID
@@ -37,13 +38,13 @@ func (th *TaskHandler) GetTask(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"message": "task not found"})
 		return
 	}
-	c.JSON(http.StatusOK, task)
+	c.JSON(http.StatusOK, dto.FromDomainTaskToResponse(&task))
 }
 
 // Create a specific task
 func (th *TaskHandler) CreateTask(c *gin.Context) {
 	user := th.UserUsecase.GetUserFromContext(c)
-	var newTask domain.Task
+	var newTask dto.TaskRequest
 	if err := c.ShouldBindJSON(&newTask); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -53,12 +54,12 @@ func (th *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 	newTask.CreatedBy = user.Username
-	err := th.TaskUsecase.Create(&newTask)
+	err := th.TaskUsecase.Create(newTask.FromRequestToDomainTask())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task"})
 		return
 	}
-	c.JSON(http.StatusCreated, newTask)
+	c.JSON(http.StatusCreated, dto.FromDomainTaskToResponse(newTask.FromRequestToDomainTask()))
 }
 
 // Update a specific task by ID
@@ -69,7 +70,7 @@ func (th *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	updatedTask := &domain.Task{}
+	updatedTask := &dto.TaskRequest{}
 	if err := c.ShouldBindJSON(updatedTask); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -81,12 +82,12 @@ func (th *TaskHandler) UpdateTask(c *gin.Context) {
 
 	user := th.UserUsecase.GetUserFromContext(c)
 	updatedTask.CreatedBy = user.Username
-	err := th.TaskUsecase.Update(id, updatedTask)
+	err := th.TaskUsecase.Update(id, updatedTask.FromRequestToDomainTask())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update task"})
 		return
 	}
-	c.JSON(http.StatusOK, updatedTask)
+	c.JSON(http.StatusOK, dto.FromDomainTaskToResponse(updatedTask.FromRequestToDomainTask()))
 }
 
 // Delete a specific task

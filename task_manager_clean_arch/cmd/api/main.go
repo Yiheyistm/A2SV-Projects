@@ -31,7 +31,7 @@ func main() {
 
 type Application struct {
 	Env   *config.Env
-	Mongo mongo.Client
+	Mongo *mongo.Client
 }
 
 func App() Application {

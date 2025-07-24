@@ -4,25 +4,24 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type User struct {
-	ID       primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	Username string             `json:"username" bson:"username" validate:"required"`
-	Email    string             `json:"email" bson:"email" validate:"required,email"`
-	Password string             `json:"password" bson:"password" validate:"required,min=6"`
-	Role     string             `json:"role" bson:"role" validate:"required,oneof=user admin"`
+	ID       string
+	Username string
+	Email    string
+	Password string
+	Role     string
 }
 
-type LoginRequest struct {
-	Identifier string `json:"identifier" bson:"identifier" validate:"required"`
-	Password   string `json:"password" bson:"password" validate:"required,min=6"`
-}
-type LoginResponse struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-}
+// type LoginRequest struct {
+// 	Identifier string
+// 	Password   string
+// }
+// type LoginResponse struct {
+// 	AccessToken  string
+// 	RefreshToken string
+// }
 
 type UserRepository interface {
 	GetAll(ctx context.Context) ([]User, error)
@@ -33,7 +32,7 @@ type UserRepository interface {
 	GetUserFromContext(c *gin.Context) *User
 }
 
-type UserUseCase interface {
+type IUserUseCase interface {
 	GetAll() ([]User, error)
 	GetByUsername(string) (*User, error)
 	GetByEmail(string) (*User, error)

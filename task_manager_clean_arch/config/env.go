@@ -15,6 +15,7 @@ type Env struct {
 	ServerAddress          string
 	ContextTimeout         int
 	DBHost                 string
+	DBUser                 string
 	DBHostURI              string
 	DBPort                 string
 	DBUserCollection       string
@@ -27,9 +28,7 @@ type Env struct {
 	RefreshTokenSecret     string
 }
 
-// Load reads configuration from environment variables
 func Load() *Env {
-	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using system environment variables")
 	}
@@ -40,6 +39,7 @@ func Load() *Env {
 		ContextTimeout:         GetEnvInt("CONTEXT_TIMEOUT", 30),
 		DBHost:                 GetEnvString("DB_HOST", "localhost"),
 		DBHostURI:              GetEnvString("DB_HOST_URI", "mongodb://localhost:27017"),
+		DBUser:                 GetEnvString("DB_USER", "user"),
 		DBPort:                 GetEnvString("DB_PORT", "27017"),
 		DBUserCollection:       GetEnvString("DB_USER_COLLECTION", "users"),
 		DBTaskCollection:       GetEnvString("DB_TASK_COLLECTION", "tasks"),

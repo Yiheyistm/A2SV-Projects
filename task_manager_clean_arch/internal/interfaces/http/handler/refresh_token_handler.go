@@ -5,14 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yiheyistm/task_manager/internal/domain"
+	"github.com/yiheyistm/task_manager/internal/interfaces/http/dto"
 )
 
 type RefreshTokenHandler struct {
-	RefreshTokenUsecase domain.RefreshTokenUsecase
+	RefreshTokenUsecase domain.IRefreshTokenUsecase
 }
 
 func (rtc *RefreshTokenHandler) RefreshToken(c *gin.Context) {
-	var request domain.RefreshTokenRequest
+	var request dto.RefreshTokenRequest
 
 	err := c.ShouldBindJSON(&request)
 	if err != nil {
@@ -38,5 +39,5 @@ func (rtc *RefreshTokenHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, dto.FromDomainRefreshTokenToResponse(&response))
 }

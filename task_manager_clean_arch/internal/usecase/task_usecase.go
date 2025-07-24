@@ -12,7 +12,7 @@ type TaskUseCase struct {
 	taskRepo domain.TaskRepository
 }
 
-func NewTaskUseCase(taskRepo domain.TaskRepository) domain.TaskUseCase {
+func NewTaskUseCase(taskRepo domain.TaskRepository) domain.ITaskUseCase {
 	return &TaskUseCase{taskRepo: taskRepo}
 }
 func (uc *TaskUseCase) GetAll() ([]domain.Task, error) {

@@ -14,7 +14,7 @@ type refreshTokenUsecase struct {
 	jwtService     security.JwtService
 }
 
-func NewRefreshTokenUsecase(userRepository domain.UserRepository, jwtService security.JwtService) domain.RefreshTokenUsecase {
+func NewRefreshTokenUsecase(userRepository domain.UserRepository, jwtService security.JwtService) domain.IRefreshTokenUsecase {
 	return &refreshTokenUsecase{
 		userRepository: userRepository,
 		jwtService:     jwtService,
@@ -27,7 +27,7 @@ func (rtu *refreshTokenUsecase) GetByUsername(username string) (*domain.User, er
 	return rtu.userRepository.GetByUsername(ctx, username)
 }
 
-func (rtu *refreshTokenUsecase) GenerateTokens(user domain.User) (domain.RefreshTokenResponse, error) {
+func (rtu *refreshTokenUsecase) GenerateTokens(user domain.User) (domain.RefreshToken, error) {
 	return rtu.jwtService.GenerateTokens(user)
 }
 

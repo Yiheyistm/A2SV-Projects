@@ -6,27 +6,33 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yiheyistm/task_manager/internal/domain"
+	"github.com/yiheyistm/task_manager/internal/infrastructure/database"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type userRepository struct {
-	database   mongo.Database
+	DB         mongo.Database
 	collection string
 }
 
 func NewUserRepository(db mongo.Database, collection string) domain.UserRepository {
 	return &userRepository{
-		database:   db,
+		DB:         db,
 		collection: collection,
 	}
 }
 
 func (s *userRepository) Insert(ctx context.Context, user *domain.User) error {
-	if user == nil {
+	userEntity, err := database.FromDomainToEntity(user)
+	if err != nil {
+		return err
+	}
+	if userEntity == nil {
 		return errors.New("user cannot be Empty")
 	}
-	_, err := s.database.Collection(s.collection).InsertOne(ctx, user)
+
+	_, err = s.DB.Collection(s.collection).InsertOne(ctx, userEntity)
 	if err != nil {
 		return err
 	}
@@ -35,7 +41,7 @@ func (s *userRepository) Insert(ctx context.Context, user *domain.User) error {
 
 func (s *userRepository) GetAll(ctx context.Context) ([]domain.User, error) {
 	var users []domain.User
-	cursor, err := s.database.Collection(s.collection).Find(ctx, bson.M{})
+	cursor, err := s.DB.Collection(s.collection).Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +63,7 @@ func (s *userRepository) getUser(ctx context.Context, key, value string) (*domai
 
 	var user domain.User
 	filter := bson.M{key: value}
-	err := s.database.Collection(s.collection).FindOne(ctx, filter).Decode(&user)
+	err := s.DB.Collection(s.collection).FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("user not found")

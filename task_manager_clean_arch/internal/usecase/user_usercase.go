@@ -13,7 +13,7 @@ type UserUseCase struct {
 	userRepo domain.UserRepository
 }
 
-func NewUserUseCase(userRepo domain.UserRepository) domain.UserUseCase {
+func NewUserUseCase(userRepo domain.UserRepository) domain.IUserUseCase {
 	return &UserUseCase{userRepo: userRepo}
 }
 
