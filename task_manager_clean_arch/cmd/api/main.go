@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+
+	"github.com/gin-gonic/gin"
 	"github.com/yiheyistm/task_manager/config"
 	"github.com/yiheyistm/task_manager/internal/infrastructure/database"
 	"github.com/yiheyistm/task_manager/internal/interfaces/http/router"
@@ -11,6 +14,15 @@ import (
 func main() {
 	app := App()
 	env := app.Env
+	if env.AppEnv == "development" {
+		// make development logs
+		gin.SetMode(gin.DebugMode)
+		fmt.Println("------------------------ Development Mode ------------------------")
+	} else {
+		// make production logs
+		gin.SetMode(gin.ReleaseMode)
+		fmt.Println("------------------------ Production Mode ------------------------")
+	}
 	db := *app.Mongo.Database(env.DBName)
 	defer app.CloseDBConnection()
 	route := router.SetupRouter(env, db)

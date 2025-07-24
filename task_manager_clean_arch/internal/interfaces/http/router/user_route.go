@@ -1,8 +1,6 @@
 package router
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/yiheyistm/task_manager/config"
 	"github.com/yiheyistm/task_manager/internal/infrastructure/persistence"
@@ -12,19 +10,26 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func UserRoutes(env *config.Env, db mongo.Database, group *gin.RouterGroup) {
+func UserRoutes(env *config.Env, db mongo.Database, protectedGroup *gin.RouterGroup, adminGroup *gin.RouterGroup) {
 	ur := persistence.NewUserRepository(db, env.DBUserCollection)
 	tr := persistence.NewTaskRepository(db, env.DBTaskCollection)
-	jwtService := security.NewJWTService(env.AccessTokenSecret, time.Duration(env.AccessTokenExpiryHour))
+	jwtService := security.NewJWTService(
+		env.AccessTokenSecret,
+		env.RefreshTokenSecret,
+		env.AccessTokenExpiryHour,
+		env.RefreshTokenExpiryHour,
+	)
 	userHandler := handler.UserHandler{
 		JwtService:  jwtService,
 		TaskUsecase: usecase.NewTaskUseCase(tr),
 		UserUsecase: usecase.NewUserUseCase(ur),
 	}
-	group.GET("/users/:username/tasks", userHandler.GetUserTasks)
-	group.GET("/users/:username/tasks/:id", userHandler.GetUserTask)
-	group.POST("/users/:username/tasks", userHandler.CreateUserTask)
-	group.PUT("/users/:username/tasks/:id", userHandler.UpdateUserTask)
-	group.DELETE("/users/:username/tasks/:id", userHandler.DeleteUserTask)
-	group.GET("/users/:username/tasks/stats", userHandler.GetUserTaskStats)
+	adminGroup.GET("/users", userHandler.GetAllUsers)
+	adminGroup.GET("/users/:username", userHandler.GetUser)
+	protectedGroup.GET("/users/:username/tasks", userHandler.GetUserTasks)
+	protectedGroup.GET("/users/:username/tasks/:id", userHandler.GetUserTask)
+	protectedGroup.POST("/users/:username/tasks", userHandler.CreateUserTask)
+	protectedGroup.PUT("/users/:username/tasks/:id", userHandler.UpdateUserTask)
+	protectedGroup.DELETE("/users/:username/tasks/:id", userHandler.DeleteUserTask)
+	protectedGroup.GET("/users/:username/tasks/stats", userHandler.GetUserTaskStats)
 }

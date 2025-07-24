@@ -59,12 +59,9 @@ func (uc *UserUseCase) Insert(user *domain.User) error {
 }
 
 func (uc *UserUseCase) GetUserFromContext(c *gin.Context) *domain.User {
-	user, exists := c.Get("user")
-	if !exists {
-		return nil
+	user := uc.userRepo.GetUserFromContext(c)
+	if user == nil {
+		return &domain.User{}
 	}
-	if u, ok := user.(*domain.User); ok {
-		return u
-	}
-	return nil
+	return user
 }

@@ -11,17 +11,16 @@ task_manager_clean_arch/
 ├── cmd/
 │   └── api/
 │       └── main.go                # Application entry point
+├── docs/
+│    └── documentation.md           # Documentation about the project
 ├── config/
 │   ├── config.go                  # Configuration loading
 │   └── env.go                     # Environment variable helpers
 ├── internal/
-│   ├── app/
-│   │   └── app.go                 # Application setup
 │   ├── domain/
-│   │   ├── task.go                # Task entity
-│   │   ├── user.go                # User entity
-│   │   ├── task_repo.go           # Task repository interface
-│   │   └── user_repo.go           # User repository interface
+│   │   └── refresh_token.go       # token etity and usecases
+│   │   ├── task.go                # Task entity and Task repository interface
+│   │   ├── user.go                # User entity and User repository interface
 │   ├── infrastructure/
 │   │   ├── database/
 │   │   │   └── db.go              # Database connection
@@ -35,7 +34,9 @@ task_manager_clean_arch/
 │   │   ├── http/
 │   │   │   ├── task_handler.go    # Task HTTP handlers
 │   │   │   ├── user_handler.go    # User HTTP handlers
-│   │   │   └── router.go         # HTTP router setup
+│   │   │   └── refresh_token_handler.go         # Token Refresh handler
+│   │   │  │   ├── router/
+│   │   │   │   │   └── app.go                 # Application setup
 │   │   └── middleware/
 │   │       └── auth.go           # Authentication middleware
 │   └── usecase/
@@ -101,7 +102,3 @@ task_manager_clean_arch/
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for details.

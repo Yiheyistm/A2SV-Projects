@@ -1,8 +1,6 @@
 package router
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/yiheyistm/task_manager/config"
 	"github.com/yiheyistm/task_manager/internal/infrastructure/persistence"
@@ -15,7 +13,12 @@ import (
 func AuthRoutes(env *config.Env, db mongo.Database, group *gin.RouterGroup) {
 	ur := persistence.NewUserRepository(db, env.DBUserCollection)
 	tr := persistence.NewTaskRepository(db, env.DBTaskCollection)
-	jwtService := security.NewJWTService(env.AccessTokenSecret, time.Duration(env.AccessTokenExpiryHour))
+	jwtService := security.NewJWTService(
+		env.AccessTokenSecret,
+		env.RefreshTokenSecret,
+		env.AccessTokenExpiryHour,
+		env.RefreshTokenExpiryHour,
+	)
 	userHandler := handler.UserHandler{
 		JwtService:  jwtService,
 		TaskUsecase: usecase.NewTaskUseCase(tr),

@@ -78,20 +78,6 @@ func (s *userRepository) GetByEmail(ctx context.Context, email string) (*domain.
 
 }
 
-// func (s *userRepository) GenerateToken(ctx context.Context, user *domain.User) (string, error) {
-// 	jwtSecret := config.GetEnvString("JWT_SECRET", "my_secret_key")
-// 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-// 		"username": user.Username,
-// 		"role":     user.Role,
-// 		"exp":      time.Now().Add(time.Hour * 48).Unix(),
-// 	})
-// 	tokenString, err := token.SignedString([]byte(jwtSecret))
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	return tokenString, nil
-// }
-
 func (s *userRepository) GetUserFromContext(c *gin.Context) *domain.User {
 	username := c.GetString("username")
 	user, _ := s.GetByUsername(c, username)

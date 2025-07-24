@@ -1,6 +1,9 @@
 package domain
 
 import (
+	"context"
+
+	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -17,5 +20,24 @@ type LoginRequest struct {
 	Password   string `json:"password" bson:"password" validate:"required,min=6"`
 }
 type LoginResponse struct {
-	Token string `json:"token" bson:"token"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+}
+
+type UserRepository interface {
+	GetAll(ctx context.Context) ([]User, error)
+	GetByUsername(ctx context.Context, username string) (*User, error)
+	GetByEmail(ctx context.Context, email string) (*User, error)
+	Insert(ctx context.Context, user *User) error
+	// GenerateToken(ctx context.Context, user *User) (string, error)
+	GetUserFromContext(c *gin.Context) *User
+}
+
+type UserUseCase interface {
+	GetAll() ([]User, error)
+	GetByUsername(string) (*User, error)
+	GetByEmail(string) (*User, error)
+	Insert(*User) error
+	// GenerateToken(*User) (string, error)
+	GetUserFromContext(*gin.Context) *User
 }

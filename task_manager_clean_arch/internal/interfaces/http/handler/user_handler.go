@@ -15,7 +15,7 @@ import (
 type UserHandler struct {
 	UserUsecase domain.UserUseCase
 	TaskUsecase domain.TaskUseCase
-	JwtService  security.JWTService
+	JwtService  *security.JwtService
 }
 
 func (uh *UserHandler) RegisterRequest(c *gin.Context) {
@@ -75,6 +75,7 @@ func (uh *UserHandler) LoginRequest(c *gin.Context) {
 	} else {
 		user, err = uh.UserUsecase.GetByUsername(loginRequest.Identifier)
 	}
+	fmt.Println("User:", user, "Error:", err)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
@@ -86,12 +87,12 @@ func (uh *UserHandler) LoginRequest(c *gin.Context) {
 		return
 	}
 
-	token, err := uh.JwtService.GenerateToken(user.Username, user.Role)
+	response, err := uh.JwtService.GenerateTokens(*user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-	c.JSON(http.StatusOK, domain.LoginResponse{Token: token})
+	c.JSON(http.StatusOK, domain.LoginResponse(response))
 }
 
 // TODO: Implement get all users, update user, get all user tasks, etc.
@@ -130,7 +131,7 @@ func (uh *UserHandler) GetUserTasks(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to see details about this user"})
 		return
 	}
-	tasks, err := uh.UserUsecase.GetByUsername(user.Username)
+	tasks, err := uh.TaskUsecase.GetTasksByUser(user.Username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks for user"})
 		return

@@ -17,8 +17,9 @@ func SetupRouter(env *config.Env, db mongo.Database) *gin.Engine {
 	adminGroup.Use(middleware.AdminOnlyMiddleware())
 
 	AuthRoutes(env, db, api)
-	UserRoutes(env, db, authGroup)
+	UserRoutes(env, db, authGroup, adminGroup)
 	TaskRoutes(env, db, adminGroup)
+	RefreshTokenRoutes(env, db, api)
 
 	return r
 }

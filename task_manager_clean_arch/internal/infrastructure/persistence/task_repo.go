@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+
 	"github.com/yiheyistm/task_manager/internal/domain"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -57,8 +58,15 @@ func (r *taskRepository) GetById(ctx context.Context, id string) (domain.Task, e
 }
 
 func (s *taskRepository) Create(ctx context.Context, task *domain.Task) error {
-	_, err := s.database.Collection(s.collection).InsertOne(ctx, task)
-	return err
+	result, err := s.database.Collection(s.collection).InsertOne(ctx, task)
+	if err != nil {
+		return err
+	}
+	if result.InsertedID == nil {
+		return errors.New("failed to insert task")
+	}
+	task.ID = result.InsertedID.(primitive.ObjectID)
+	return nil
 }
 
 func (s *taskRepository) Update(ctx context.Context, id string, updateTask *domain.Task) error {
@@ -70,16 +78,29 @@ func (s *taskRepository) Update(ctx context.Context, id string, updateTask *doma
 	update := bson.M{
 		"$set": updateTask,
 	}
-	_, err = s.database.Collection(s.collection).UpdateOne(ctx, bson.M{"_id": objectID}, update)
-	return err
+	result, err := s.database.Collection(s.collection).UpdateOne(ctx, bson.M{"_id": objectID}, update)
+	if err != nil {
+		return err
+	}
+	if result.ModifiedCount == 0 {
+		return errors.New("failed to update task or already up to date")
+	}
+	return nil
 }
+
 func (s *taskRepository) Delete(ctx context.Context, id string) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
 	}
-	_, err = s.database.Collection(s.collection).DeleteOne(ctx, bson.M{"_id": objectID})
-	return err
+	result, err := s.database.Collection(s.collection).DeleteOne(ctx, bson.M{"_id": objectID})
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
+		return errors.New("task not found or already deleted")
+	}
+	return nil
 }
 
 func (s *taskRepository) GetTaskCountByStatus(ctx context.Context) ([]domain.StatusCount, error) {
@@ -152,8 +173,15 @@ func (s *taskRepository) UpdateByIdAndUser(ctx context.Context, id string, updat
 	update := bson.M{
 		"$set": updateTask,
 	}
-	_, err = s.database.Collection(s.collection).UpdateOne(ctx, bson.M{"_id": objectID, "created_by": username}, update)
-	return err
+	result, err := s.database.Collection(s.collection).UpdateOne(ctx, bson.M{"_id": objectID, "created_by": username}, update)
+	if err != nil {
+		return err
+	}
+	if result.ModifiedCount == 0 {
+		return errors.New("failed to update task or task not found for user")
+	}
+	updateTask.ID = objectID
+	return nil
 }
 
 // DeleteByIdAndUser
@@ -162,8 +190,14 @@ func (s *taskRepository) DeleteByIdAndUser(ctx context.Context, id string, usern
 	if err != nil {
 		return err
 	}
-	_, err = s.database.Collection(s.collection).DeleteOne(ctx, bson.M{"_id": objectID, "created_by": username})
-	return err
+	result, err := s.database.Collection(s.collection).DeleteOne(ctx, bson.M{"_id": objectID, "created_by": username})
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
+		return errors.New("task not found or not owned by user")
+	}
+	return nil
 }
 
 // GetTaskStatsByUser
