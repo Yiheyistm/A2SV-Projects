@@ -13,22 +13,12 @@ type User struct {
 	Password string
 	Role     string
 }
-
-// type LoginRequest struct {
-// 	Identifier string
-// 	Password   string
-// }
-// type LoginResponse struct {
-// 	AccessToken  string
-// 	RefreshToken string
-// }
-
 type UserRepository interface {
-	GetAll(ctx context.Context) ([]User, error)
-	GetByUsername(ctx context.Context, username string) (*User, error)
-	GetByEmail(ctx context.Context, email string) (*User, error)
-	Insert(ctx context.Context, user *User) error
-	// GenerateToken(ctx context.Context, user *User) (string, error)
+	GetAll(context.Context) ([]User, error)
+	GetByUsername(context.Context, string) (*User, error)
+	GetByEmail(context.Context, string) (*User, error)
+	Insert(context.Context, *User) error
+	GetUser(context.Context, string, string) (*User, error)
 	GetUserFromContext(c *gin.Context) *User
 }
 

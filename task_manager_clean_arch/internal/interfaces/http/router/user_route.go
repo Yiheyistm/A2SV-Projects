@@ -13,16 +13,16 @@ import (
 func UserRoutes(env *config.Env, db mongo.Database, protectedGroup *gin.RouterGroup, adminGroup *gin.RouterGroup) {
 	ur := persistence.NewUserRepository(db, env.DBUserCollection)
 	tr := persistence.NewTaskRepository(db, env.DBTaskCollection)
-	jwtService := security.NewJWTService(
+	refreshTokenRepo := security.NewJWTService(
 		env.AccessTokenSecret,
 		env.RefreshTokenSecret,
 		env.AccessTokenExpiryHour,
 		env.RefreshTokenExpiryHour,
 	)
 	userHandler := handler.UserHandler{
-		JwtService:  jwtService,
-		TaskUsecase: usecase.NewTaskUseCase(tr),
-		UserUsecase: usecase.NewUserUseCase(ur),
+		RefreshTokenUsecase: usecase.NewRefreshTokenUsecase(ur, refreshTokenRepo),
+		TaskUsecase:         usecase.NewTaskUseCase(tr),
+		UserUsecase:         usecase.NewUserUseCase(ur),
 	}
 	adminGroup.GET("/users", userHandler.GetAllUsers)
 	adminGroup.GET("/users/:username", userHandler.GetUser)

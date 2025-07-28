@@ -10,22 +10,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type taskRepository struct {
-	database   mongo.Database
-	collection string
+type TaskRepositoryImpl struct {
+	Database   mongo.Database
+	Collection string
 }
 
 func NewTaskRepository(db mongo.Database, collection string) domain.TaskRepository {
-	return &taskRepository{
-		database:   db,
-		collection: collection,
+	return &TaskRepositoryImpl{
+		Database:   db,
+		Collection: collection,
 	}
 }
 
-func (r *taskRepository) GetAll(ctx context.Context) ([]domain.Task, error) {
+func (r *TaskRepositoryImpl) GetAll(ctx context.Context) ([]domain.Task, error) {
 
 	var tasks []domain.Task
-	cursor, err := r.database.Collection(r.collection).Find(ctx, bson.M{})
+	cursor, err := r.Database.Collection(r.Collection).Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (r *taskRepository) GetAll(ctx context.Context) ([]domain.Task, error) {
 	}
 	return tasks, nil
 }
-func (r *taskRepository) GetById(ctx context.Context, id string) (domain.Task, error) {
+func (r *TaskRepositoryImpl) GetById(ctx context.Context, id string) (domain.Task, error) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return domain.Task{}, err
@@ -48,7 +48,7 @@ func (r *taskRepository) GetById(ctx context.Context, id string) (domain.Task, e
 
 	var task domain.Task
 	filter := bson.M{"_id": objectID}
-	if err := r.database.Collection(r.collection).FindOne(ctx, filter).Decode(&task); err != nil {
+	if err := r.Database.Collection(r.Collection).FindOne(ctx, filter).Decode(&task); err != nil {
 		if err == mongo.ErrNoDocuments {
 			return domain.Task{}, errors.New("task not found")
 		}
@@ -57,8 +57,8 @@ func (r *taskRepository) GetById(ctx context.Context, id string) (domain.Task, e
 	return task, nil
 }
 
-func (s *taskRepository) Create(ctx context.Context, task *domain.Task) error {
-	result, err := s.database.Collection(s.collection).InsertOne(ctx, task)
+func (s *TaskRepositoryImpl) Create(ctx context.Context, task *domain.Task) error {
+	result, err := s.Database.Collection(s.Collection).InsertOne(ctx, task)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (s *taskRepository) Create(ctx context.Context, task *domain.Task) error {
 	return nil
 }
 
-func (s *taskRepository) Update(ctx context.Context, id string, updateTask *domain.Task) error {
+func (s *TaskRepositoryImpl) Update(ctx context.Context, id string, updateTask *domain.Task) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (s *taskRepository) Update(ctx context.Context, id string, updateTask *doma
 	update := bson.M{
 		"$set": updateTask,
 	}
-	result, err := s.database.Collection(s.collection).UpdateOne(ctx, bson.M{"_id": objectID}, update)
+	result, err := s.Database.Collection(s.Collection).UpdateOne(ctx, bson.M{"_id": objectID}, update)
 	if err != nil {
 		return err
 	}
@@ -88,12 +88,12 @@ func (s *taskRepository) Update(ctx context.Context, id string, updateTask *doma
 	return nil
 }
 
-func (s *taskRepository) Delete(ctx context.Context, id string) error {
+func (s *TaskRepositoryImpl) Delete(ctx context.Context, id string) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
 	}
-	result, err := s.database.Collection(s.collection).DeleteOne(ctx, bson.M{"_id": objectID})
+	result, err := s.Database.Collection(s.Collection).DeleteOne(ctx, bson.M{"_id": objectID})
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (s *taskRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *taskRepository) GetTaskCountByStatus(ctx context.Context) ([]domain.StatusCount, error) {
+func (s *TaskRepositoryImpl) GetTaskCountByStatus(ctx context.Context) ([]domain.StatusCount, error) {
 	pipeline := mongo.Pipeline{
 		{{Key: "$group", Value: bson.D{
 			{Key: "_id", Value: "$status"},
@@ -111,7 +111,7 @@ func (s *taskRepository) GetTaskCountByStatus(ctx context.Context) ([]domain.Sta
 		}}},
 	}
 
-	cursor, err := s.database.Collection(s.collection).Aggregate(ctx, pipeline)
+	cursor, err := s.Database.Collection(s.Collection).Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -125,11 +125,11 @@ func (s *taskRepository) GetTaskCountByStatus(ctx context.Context) ([]domain.Sta
 }
 
 // GetByUser
-func (s *taskRepository) GetByUser(ctx context.Context, username string) ([]domain.Task, error) {
+func (s *TaskRepositoryImpl) GetByUser(ctx context.Context, username string) ([]domain.Task, error) {
 
 	var tasks []domain.Task
 	filter := bson.M{"created_by": username}
-	cursor, err := s.database.Collection(s.collection).Find(ctx, filter)
+	cursor, err := s.Database.Collection(s.Collection).Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (s *taskRepository) GetByUser(ctx context.Context, username string) ([]doma
 }
 
 // GetByIdAndUser
-func (s *taskRepository) GetByIdAndUser(ctx context.Context, taskID, username string) (domain.Task, error) {
+func (s *TaskRepositoryImpl) GetByIdAndUser(ctx context.Context, taskID, username string) (domain.Task, error) {
 	id, err := primitive.ObjectIDFromHex(taskID)
 	if err != nil {
 		return domain.Task{}, err
@@ -154,7 +154,7 @@ func (s *taskRepository) GetByIdAndUser(ctx context.Context, taskID, username st
 
 	var task domain.Task
 	filter := bson.M{"_id": id, "created_by": username}
-	if err := s.database.Collection(s.collection).FindOne(ctx, filter).Decode(&task); err != nil {
+	if err := s.Database.Collection(s.Collection).FindOne(ctx, filter).Decode(&task); err != nil {
 		if err == mongo.ErrNoDocuments {
 			return domain.Task{}, errors.New("task not found")
 		}
@@ -164,7 +164,7 @@ func (s *taskRepository) GetByIdAndUser(ctx context.Context, taskID, username st
 }
 
 // UpdateByIdAndUser
-func (s *taskRepository) UpdateByIdAndUser(ctx context.Context, id string, updateTask *domain.Task, username string) error {
+func (s *TaskRepositoryImpl) UpdateByIdAndUser(ctx context.Context, id string, updateTask *domain.Task, username string) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
@@ -173,7 +173,7 @@ func (s *taskRepository) UpdateByIdAndUser(ctx context.Context, id string, updat
 	update := bson.M{
 		"$set": updateTask,
 	}
-	result, err := s.database.Collection(s.collection).UpdateOne(ctx, bson.M{"_id": objectID, "created_by": username}, update)
+	result, err := s.Database.Collection(s.Collection).UpdateOne(ctx, bson.M{"_id": objectID, "created_by": username}, update)
 	if err != nil {
 		return err
 	}
@@ -185,12 +185,12 @@ func (s *taskRepository) UpdateByIdAndUser(ctx context.Context, id string, updat
 }
 
 // DeleteByIdAndUser
-func (s *taskRepository) DeleteByIdAndUser(ctx context.Context, id string, username string) error {
+func (s *TaskRepositoryImpl) DeleteByIdAndUser(ctx context.Context, id string, username string) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
 	}
-	result, err := s.database.Collection(s.collection).DeleteOne(ctx, bson.M{"_id": objectID, "created_by": username})
+	result, err := s.Database.Collection(s.Collection).DeleteOne(ctx, bson.M{"_id": objectID, "created_by": username})
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func (s *taskRepository) DeleteByIdAndUser(ctx context.Context, id string, usern
 }
 
 // GetTaskStatsByUser
-func (s *taskRepository) GetTaskStatsByUser(ctx context.Context, username string) ([]domain.StatusCount, error) {
+func (s *TaskRepositoryImpl) GetTaskStatsByUser(ctx context.Context, username string) ([]domain.StatusCount, error) {
 
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{"created_by": username}}},
@@ -211,7 +211,7 @@ func (s *taskRepository) GetTaskStatsByUser(ctx context.Context, username string
 		}}},
 	}
 
-	cursor, err := s.database.Collection(s.collection).Aggregate(ctx, pipeline)
+	cursor, err := s.Database.Collection(s.Collection).Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}

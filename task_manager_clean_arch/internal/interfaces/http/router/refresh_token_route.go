@@ -12,14 +12,14 @@ import (
 
 func RefreshTokenRoutes(env *config.Env, db mongo.Database, group *gin.RouterGroup) {
 	ur := persistence.NewUserRepository(db, env.DBUserCollection)
-	jwtService := security.NewJWTService(
+	refreshTokenRepo := security.NewJWTService(
 		env.AccessTokenSecret,
 		env.RefreshTokenSecret,
 		env.AccessTokenExpiryHour,
 		env.RefreshTokenExpiryHour,
 	)
 	userHandler := handler.RefreshTokenHandler{
-		RefreshTokenUsecase: usecase.NewRefreshTokenUsecase(ur, *jwtService),
+		RefreshTokenUsecase: usecase.NewRefreshTokenUsecase(ur, usecase.NewRefreshTokenUsecase(ur, refreshTokenRepo)),
 	}
 	group.POST("/users/refresh", userHandler.RefreshToken)
 }

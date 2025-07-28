@@ -6,18 +6,17 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/yiheyistm/task_manager/internal/domain"
-	"github.com/yiheyistm/task_manager/internal/infrastructure/security"
 )
 
 type refreshTokenUsecase struct {
-	userRepository domain.UserRepository
-	jwtService     security.JwtService
+	userRepository   domain.UserRepository
+	refreshTokenRepo domain.RefreshTokenRepository
 }
 
-func NewRefreshTokenUsecase(userRepository domain.UserRepository, jwtService security.JwtService) domain.IRefreshTokenUsecase {
+func NewRefreshTokenUsecase(userRepository domain.UserRepository, refreshTokenRepo domain.RefreshTokenRepository) domain.IRefreshTokenUsecase {
 	return &refreshTokenUsecase{
-		userRepository: userRepository,
-		jwtService:     jwtService,
+		userRepository:   userRepository,
+		refreshTokenRepo: refreshTokenRepo,
 	}
 }
 
@@ -28,12 +27,12 @@ func (rtu *refreshTokenUsecase) GetByUsername(username string) (*domain.User, er
 }
 
 func (rtu *refreshTokenUsecase) GenerateTokens(user domain.User) (domain.RefreshToken, error) {
-	return rtu.jwtService.GenerateTokens(user)
+	return rtu.refreshTokenRepo.GenerateTokens(user)
 }
 
 func (rtu *refreshTokenUsecase) ValidateRefreshToken(token string) (jwt.MapClaims, error) {
-	return rtu.jwtService.ValidateRefreshToken(token)
+	return rtu.refreshTokenRepo.ValidateRefreshToken(token)
 }
 func (rtu *refreshTokenUsecase) ValidateToken(token string) (jwt.MapClaims, error) {
-	return rtu.jwtService.ValidateToken(token)
+	return rtu.refreshTokenRepo.ValidateToken(token)
 }

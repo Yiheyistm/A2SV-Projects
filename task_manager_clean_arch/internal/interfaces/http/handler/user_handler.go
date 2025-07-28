@@ -14,9 +14,9 @@ import (
 )
 
 type UserHandler struct {
-	UserUsecase domain.IUserUseCase
-	TaskUsecase domain.ITaskUseCase
-	JwtService  *security.JwtService
+	UserUsecase         domain.IUserUseCase
+	TaskUsecase         domain.ITaskUseCase
+	RefreshTokenUsecase domain.IRefreshTokenUsecase
 }
 
 func (uh *UserHandler) RegisterRequest(c *gin.Context) {
@@ -87,7 +87,7 @@ func (uh *UserHandler) LoginRequest(c *gin.Context) {
 		return
 	}
 
-	response, err := uh.JwtService.GenerateTokens(*user)
+	response, err := uh.RefreshTokenUsecase.GenerateTokens(*user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
@@ -136,7 +136,7 @@ func (uh *UserHandler) GetUserTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks for user"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"tasks": tasks})
+	c.JSON(http.StatusOK, gin.H{"tasks": dto.FromDomainTaskToResponseList(tasks)})
 }
 
 // GetUserTask
@@ -159,7 +159,7 @@ func (uh *UserHandler) GetUserTask(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"message": "task not found"})
 		return
 	}
-	c.JSON(http.StatusOK, task)
+	c.JSON(http.StatusOK, dto.FromDomainTaskToResponse(&task))
 }
 
 // CreateUserTask
@@ -171,7 +171,7 @@ func (uh *UserHandler) CreateUserTask(c *gin.Context) {
 		return
 	}
 
-	var newTask domain.Task
+	var newTask dto.TaskRequest
 	if err := c.ShouldBindJSON(&newTask); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -182,12 +182,12 @@ func (uh *UserHandler) CreateUserTask(c *gin.Context) {
 	}
 	newTask.CreatedBy = user.Username
 
-	err := uh.TaskUsecase.Create(&newTask)
+	err := uh.TaskUsecase.Create(newTask.FromRequestToDomainTask())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task"})
 		return
 	}
-	c.JSON(http.StatusCreated, newTask)
+	c.JSON(http.StatusCreated, dto.FromDomainTaskToResponse(newTask.FromRequestToDomainTask()))
 }
 
 // UpdateUserTask
@@ -205,7 +205,7 @@ func (uh *UserHandler) UpdateUserTask(c *gin.Context) {
 		return
 	}
 
-	updatedTask := &domain.Task{}
+	updatedTask := &dto.TaskRequest{}
 	if err := c.ShouldBindJSON(updatedTask); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -215,12 +215,12 @@ func (uh *UserHandler) UpdateUserTask(c *gin.Context) {
 		return
 	}
 	updatedTask.CreatedBy = user.Username
-	err := uh.TaskUsecase.UpdateByIdAndUser(taskID, updatedTask, user.Username)
+	err := uh.TaskUsecase.UpdateByIdAndUser(taskID, updatedTask.FromRequestToDomainTask(), user.Username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update task"})
 		return
 	}
-	c.JSON(http.StatusOK, updatedTask)
+	c.JSON(http.StatusOK, dto.FromDomainTaskToResponse(updatedTask.FromRequestToDomainTask()))
 }
 
 // DeleteUserTask

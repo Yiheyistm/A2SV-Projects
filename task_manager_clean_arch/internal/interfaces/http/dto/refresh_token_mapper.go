@@ -10,6 +10,9 @@ func (r *RefreshTokenRequest) FromRequestToDomainRefreshToken() *domain.RefreshT
 }
 
 func FromDomainRefreshTokenToResponse(refreshToken *domain.RefreshToken) *domain.RefreshToken {
+	if refreshToken == nil {
+		return nil
+	}
 	return &domain.RefreshToken{
 		AccessToken:  refreshToken.AccessToken,
 		RefreshToken: refreshToken.RefreshToken,

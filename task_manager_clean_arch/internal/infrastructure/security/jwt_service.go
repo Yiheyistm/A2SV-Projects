@@ -10,18 +10,18 @@ import (
 )
 
 type JwtService struct {
-	accessSecret  string
-	refreshSecret string
-	accessExpiry  time.Duration
-	refreshExpiry time.Duration
+	AccessSecret  string
+	RefreshSecret string
+	AccessExpiry  time.Duration
+	RefreshExpiry time.Duration
 }
 
-func NewJWTService(accessSecret, refreshSecret string, accessExpiry, refreshExpiry int) *JwtService {
+func NewJWTService(accessSecret, refreshSecret string, accessExpiry, refreshExpiry int) domain.RefreshTokenRepository {
 	return &JwtService{
-		accessSecret:  accessSecret,
-		refreshSecret: refreshSecret,
-		accessExpiry:  time.Duration(accessExpiry) * time.Hour,
-		refreshExpiry: time.Duration(refreshExpiry) * time.Hour,
+		AccessSecret:  accessSecret,
+		RefreshSecret: refreshSecret,
+		AccessExpiry:  time.Duration(accessExpiry) * time.Hour,
+		RefreshExpiry: time.Duration(refreshExpiry) * time.Hour,
 	}
 }
 
@@ -31,11 +31,11 @@ func (s *JwtService) GenerateTokens(user domain.User) (domain.RefreshToken, erro
 		"sub":      user.ID,
 		"username": user.Username,
 		"role":     user.Role,
-		"exp":      time.Now().Add(s.accessExpiry).Unix(),
+		"exp":      time.Now().Add(s.AccessExpiry).Unix(),
 		"iat":      time.Now().Unix(),
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessTokenStr, err := accessToken.SignedString([]byte(s.accessSecret))
+	accessTokenStr, err := accessToken.SignedString([]byte(s.AccessSecret))
 	if err != nil {
 		return domain.RefreshToken{}, err
 	}
@@ -43,11 +43,11 @@ func (s *JwtService) GenerateTokens(user domain.User) (domain.RefreshToken, erro
 	refreshClaims := jwt.MapClaims{
 		"sub":      user.ID,
 		"username": user.Username,
-		"exp":      time.Now().Add(s.refreshExpiry).Unix(),
+		"exp":      time.Now().Add(s.RefreshExpiry).Unix(),
 		"iat":      time.Now().Unix(),
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenStr, err := refreshToken.SignedString([]byte(s.refreshSecret))
+	refreshTokenStr, err := refreshToken.SignedString([]byte(s.RefreshSecret))
 	if err != nil {
 		return domain.RefreshToken{}, err
 	}
@@ -60,13 +60,13 @@ func (s *JwtService) GenerateTokens(user domain.User) (domain.RefreshToken, erro
 
 func (s *JwtService) ValidateToken(token string) (jwt.MapClaims, error) {
 	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if method, ok := token.Method.(*jwt.SigningMethodHMAC); !ok || method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, errors.New("unexpected signing method")
 		}
-		return []byte(s.accessSecret), nil
+		return []byte(s.AccessSecret), nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid token: " + err.Error())
 	}
 	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
 		return claims, nil
@@ -76,13 +76,13 @@ func (s *JwtService) ValidateToken(token string) (jwt.MapClaims, error) {
 
 func (s *JwtService) ValidateRefreshToken(token string) (jwt.MapClaims, error) {
 	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if method, ok := token.Method.(*jwt.SigningMethodHMAC); !ok || method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, errors.New("unexpected signing method")
 		}
-		return []byte(s.refreshSecret), nil
+		return []byte(s.RefreshSecret), nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid token: " + err.Error())
 	}
 	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
 		return claims, nil

@@ -2,16 +2,10 @@ package database
 
 import (
 	"github.com/yiheyistm/task_manager/internal/domain"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func FromDomainToEntity(u *domain.User) (*UserEntity, error) {
-	objectID, err := primitive.ObjectIDFromHex(u.ID)
-	if err != nil {
-		return nil, err
-	}
 	return &UserEntity{
-		ID:       objectID,
 		Username: u.Username,
 		Email:    u.Email,
 		Password: u.Password,

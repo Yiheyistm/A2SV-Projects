@@ -13,16 +13,16 @@ import (
 func AuthRoutes(env *config.Env, db mongo.Database, group *gin.RouterGroup) {
 	ur := persistence.NewUserRepository(db, env.DBUserCollection)
 	tr := persistence.NewTaskRepository(db, env.DBTaskCollection)
-	jwtService := security.NewJWTService(
+	refreshTokenRepo := security.NewJWTService(
 		env.AccessTokenSecret,
 		env.RefreshTokenSecret,
 		env.AccessTokenExpiryHour,
 		env.RefreshTokenExpiryHour,
 	)
 	userHandler := handler.UserHandler{
-		JwtService:  jwtService,
-		TaskUsecase: usecase.NewTaskUseCase(tr),
-		UserUsecase: usecase.NewUserUseCase(ur),
+		RefreshTokenUsecase: usecase.NewRefreshTokenUsecase(ur, refreshTokenRepo),
+		TaskUsecase:         usecase.NewTaskUseCase(tr),
+		UserUsecase:         usecase.NewUserUseCase(ur),
 	}
 	group.POST("/users/register", userHandler.RegisterRequest)
 	group.POST("/users/login", userHandler.LoginRequest)

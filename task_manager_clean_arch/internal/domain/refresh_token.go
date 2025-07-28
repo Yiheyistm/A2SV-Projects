@@ -15,3 +15,9 @@ type IRefreshTokenUsecase interface {
 	ValidateRefreshToken(token string) (jwt.MapClaims, error)
 	GetByUsername(string) (*User, error)
 }
+
+type RefreshTokenRepository interface {
+	GenerateTokens(user User) (RefreshToken, error)
+	ValidateToken(tokenString string) (jwt.MapClaims, error)
+	ValidateRefreshToken(token string) (jwt.MapClaims, error)
+}

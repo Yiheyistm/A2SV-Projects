@@ -73,25 +73,25 @@ func (uc *TaskUseCase) Delete(id string) error {
 	return nil
 }
 
-func (uc *TaskUseCase) GetTasksByUser(userID string) ([]domain.Task, error) {
+func (uc *TaskUseCase) GetTasksByUser(username string) ([]domain.Task, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if userID == "" {
-		return nil, errors.New("user ID cannot be empty")
+	if username == "" {
+		return nil, errors.New("username cannot be empty")
 	}
-	tasks, err := uc.taskRepo.GetByUser(ctx, userID)
+	tasks, err := uc.taskRepo.GetByUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 	return tasks, nil
 }
-func (uc *TaskUseCase) GetTaskStatsByUser(userID string) ([]domain.StatusCount, error) {
+func (uc *TaskUseCase) GetTaskStatsByUser(username string) ([]domain.StatusCount, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if userID == "" {
-		return nil, errors.New("user ID cannot be empty")
+	if username == "" {
+		return nil, errors.New("username cannot be empty")
 	}
-	stats, err := uc.taskRepo.GetTaskStatsByUser(ctx, userID)
+	stats, err := uc.taskRepo.GetTaskStatsByUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
@@ -107,40 +107,40 @@ func (uc *TaskUseCase) GetTaskCountByStatus() ([]domain.StatusCount, error) {
 	return stats, nil
 }
 
-func (uc *TaskUseCase) GetByIdAndUser(id, userID string) (domain.Task, error) {
+func (uc *TaskUseCase) GetByIdAndUser(id, username string) (domain.Task, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if id == "" || userID == "" {
-		return domain.Task{}, errors.New("task ID and user ID cannot be empty")
+	if id == "" || username == "" {
+		return domain.Task{}, errors.New("task ID and username cannot be empty")
 	}
-	task, err := uc.taskRepo.GetByIdAndUser(ctx, id, userID)
+	task, err := uc.taskRepo.GetByIdAndUser(ctx, id, username)
 	if err != nil {
 		return domain.Task{}, err
 	}
 	return task, nil
 }
-func (uc *TaskUseCase) UpdateByIdAndUser(id string, task *domain.Task, userID string) error {
+func (uc *TaskUseCase) UpdateByIdAndUser(id string, task *domain.Task, username string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if id == "" || userID == "" {
-		return errors.New("task ID and user ID cannot be empty")
+	if id == "" || username == "" {
+		return errors.New("task ID and username cannot be empty")
 	}
 	if task == nil {
 		return errors.New("task cannot be nil")
 	}
-	err := uc.taskRepo.UpdateByIdAndUser(ctx, id, task, userID)
+	err := uc.taskRepo.UpdateByIdAndUser(ctx, id, task, username)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func (uc *TaskUseCase) DeleteByIdAndUser(id, userID string) error {
+func (uc *TaskUseCase) DeleteByIdAndUser(id, username string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if id == "" || userID == "" {
-		return errors.New("task ID and user ID cannot be empty")
+	if id == "" || username == "" {
+		return errors.New("task ID and username cannot be empty")
 	}
-	err := uc.taskRepo.DeleteByIdAndUser(ctx, id, userID)
+	err := uc.taskRepo.DeleteByIdAndUser(ctx, id, username)
 	if err != nil {
 		return err
 	}

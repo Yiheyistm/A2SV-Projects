@@ -29,6 +29,7 @@ type Env struct {
 }
 
 func Load() *Env {
+	_ = godotenv.Load("../../env") // for Testing purpose
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using system environment variables")
 	}

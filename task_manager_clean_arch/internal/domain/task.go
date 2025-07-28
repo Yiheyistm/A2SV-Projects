@@ -17,8 +17,8 @@ type Task struct {
 }
 
 type StatusCount struct {
-	Status string `bson:"_id"`
-	Count  int    `bson:"count"`
+	Status string
+	Count  int
 }
 
 type TaskRepository interface {
