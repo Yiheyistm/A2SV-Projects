@@ -1,16 +1,16 @@
-package persistence
+package repo
 
 import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/suite"
 	"github.com/yiheyistm/task_manager/config"
 	"github.com/yiheyistm/task_manager/internal/domain"
+	"github.com/yiheyistm/task_manager/internal/infrastructure/database"
 	"github.com/yiheyistm/task_manager/internal/infrastructure/persistence"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -29,13 +29,13 @@ type UserRepositorySuite struct {
 
 // SetupSuite connects to MongoDB and initializes the client
 func (s *UserRepositorySuite) SetupSuite() {
-	godotenv.Load("../../env")
+	_ = godotenv.Load("../../../env") // for Testing purpose
 	env := config.Load()
 	DBHostURI := fmt.Sprintf("mongodb+srv://%s:%s@%s.r31b5bc.mongodb.net/?retryWrites=true&w=majority", env.DBUser, env.DBPass, env.DBHost)
 	var err error
+	fmt.Println("Connecting to MongoDB at:", DBHostURI)
 	s.ctx = context.Background()
 	s.client, err = mongo.Connect(s.ctx, options.Client().ApplyURI(DBHostURI))
-	fmt.Println(s.client)
 	if err != nil {
 		s.T().Fatalf("Failed to connect to MongoDB: %v", err)
 	}
@@ -50,11 +50,23 @@ func (s *UserRepositorySuite) TearDownSuite() {
 
 // SetupTest initializes a unique test database and repository
 func (s *UserRepositorySuite) SetupTest() {
-	// Create a unique database name using a timestamp
 	godotenv.Load("../../env")
-	dbName := fmt.Sprintf("test_db_%d", time.Now().UnixNano())
+	dbName := "test_db"
 	s.database = s.client.Database(dbName)
 	s.repository = persistence.NewUserRepository(*s.database, "users")
+
+	// Create a unique index on the username field
+	indexModel := mongo.IndexModel{
+		Keys:    bson.M{"username": 1}, // Unique on the username field
+		Options: options.Index().SetUnique(true),
+	}
+	_, err := s.database.Collection("users").Indexes().CreateOne(s.ctx, indexModel)
+	if err != nil && !mongo.IsDuplicateKeyError(err) {
+		s.T().Fatalf("Failed to create unique index: %v", err)
+	}
+	if err != nil {
+		s.T().Fatalf("Failed to create unique index: %v", err)
+	}
 	s.ctx = context.Background()
 }
 
@@ -84,30 +96,32 @@ func (s *UserRepositorySuite) TestNewUserRepository() {
 }
 
 // TestInsert tests the Insert method
-func (s *UserRepositorySuite) TestInsert() {
+func (s *UserRepositorySuite) TestUserInsert() {
 	s.Run("Success", func() {
 		id := primitive.NewObjectID()
-		user := &domain.User{
-			Username: "Abebe",
+		user := &database.UserEntity{
+			ID:       id,
+			Username: "Abebe" + id.Hex(), // to remove duplicate key error
 			Email:    "abebe@example.com",
 			Password: "hashed_password",
 			Role:     "user",
 		}
 
-		err := s.repository.Insert(s.ctx, user)
-
+		// Use the ObjectID directly for the _id field in MongoDB
+		res, err := s.database.Collection("users").InsertOne(s.ctx, user)
+		s.NoError(err)
+		s.NotNil(res.InsertedID)
 		s.NoError(err)
 
 		// Verify the user was inserted
-		var result domain.User
-		err = s.database.Collection("users").FindOne(s.ctx, bson.M{"_id": id}).Decode(&result)
+		var result database.UserEntity
+		err = s.database.Collection("users").FindOne(s.ctx, bson.M{"username": "Abebe" + id.Hex()}).Decode(&result)
 		s.NoError(err)
 		s.Equal(user, &result)
 	})
 
 	s.Run("NilUser", func() {
 		err := s.repository.Insert(s.ctx, nil)
-
 		s.Error(err)
 		s.Contains(err.Error(), "user cannot be nil")
 	})
@@ -115,8 +129,8 @@ func (s *UserRepositorySuite) TestInsert() {
 	s.Run("DuplicateKey", func() {
 		user := &domain.User{
 			ID:       "1",
-			Username: "Abebe",
-			Email:    "abebe@example.com",
+			Username: "Nicko",
+			Email:    "nicko@example.com",
 			Password: "hashed_password",
 			Role:     "user",
 		}
@@ -134,9 +148,9 @@ func (s *UserRepositorySuite) TestInsert() {
 // TestGetAll tests the GetAll method
 func (s *UserRepositorySuite) TestGetAll() {
 	s.Run("Success", func() {
-		users := []domain.User{
-			{ID: "1", Username: "Abebe", Email: "abebe@example.com", Role: "user"},
-			{ID: "2", Username: "Kebede", Email: "kebede@example.com", Role: "admin"},
+		users := []database.UserEntity{
+			{ID: primitive.NewObjectID(), Username: "Abebe", Email: "abebe@example.com", Role: "user"},
+			{ID: primitive.NewObjectID(), Username: "Kebede", Email: "kebede@example.com", Role: "admin"},
 		}
 		for _, user := range users {
 			_, err := s.database.Collection("users").InsertOne(s.ctx, user)
@@ -144,12 +158,14 @@ func (s *UserRepositorySuite) TestGetAll() {
 		}
 
 		result, err := s.repository.GetAll(s.ctx)
-
+		userDomain := database.FromEntityListToDomainList(users)
 		s.NoError(err)
-		s.ElementsMatch(users, result)
+		s.ElementsMatch(userDomain, result)
 	})
 
 	s.Run("EmptyCollection", func() {
+		_, err := s.database.Collection("users").DeleteMany(s.ctx, bson.M{})
+		s.NoError(err)
 		result, err := s.repository.GetAll(s.ctx)
 		s.NoError(err)
 		s.Empty(result)
@@ -159,8 +175,8 @@ func (s *UserRepositorySuite) TestGetAll() {
 // TestGetUser tests the getUser helper method
 func (s *UserRepositorySuite) TestGetUser() {
 	s.Run("Success", func() {
-		user := &domain.User{
-			ID:       "1",
+		user := &database.UserEntity{
+			ID:       primitive.NewObjectID(),
 			Username: "Abebe",
 			Email:    "abebe@example.com",
 			Role:     "user",
@@ -169,14 +185,13 @@ func (s *UserRepositorySuite) TestGetUser() {
 		s.NoError(err)
 
 		result, err := s.repository.GetUser(s.ctx, "username", "Abebe")
-
+		userDomain := database.FromEntityToDomain(user)
 		s.NoError(err)
-		s.Equal(user, result)
+		s.Equal(userDomain, result)
 	})
 
 	s.Run("UserNotFound", func() {
-		result, err := s.repository.GetUser(s.ctx, "username", "Abebe")
-
+		result, err := s.repository.GetUser(s.ctx, "username", "Kebede")
 		s.Error(err)
 		s.Contains(err.Error(), "user not found")
 		s.Nil(result)
@@ -186,8 +201,8 @@ func (s *UserRepositorySuite) TestGetUser() {
 // TestGetByUsername tests the GetByUsername method
 func (s *UserRepositorySuite) TestGetByUsername() {
 	s.Run("Success", func() {
-		user := &domain.User{
-			ID:       "1",
+		user := &database.UserEntity{
+			ID:       primitive.NewObjectID(),
 			Username: "Abebe",
 			Email:    "abebe@example.com",
 			Role:     "user",
@@ -196,13 +211,13 @@ func (s *UserRepositorySuite) TestGetByUsername() {
 		s.NoError(err)
 
 		result, err := s.repository.GetByUsername(s.ctx, "Abebe")
-
+		userDomain := database.FromEntityToDomain(user)
 		s.NoError(err)
-		s.Equal(user, result)
+		s.Equal(userDomain, result)
 	})
 
 	s.Run("UserNotFound", func() {
-		result, err := s.repository.GetByUsername(s.ctx, "Abebe")
+		result, err := s.repository.GetByUsername(s.ctx, "Kebede")
 
 		s.Error(err)
 		s.Contains(err.Error(), "user not found")
@@ -213,23 +228,22 @@ func (s *UserRepositorySuite) TestGetByUsername() {
 // TestGetByEmail tests the GetByEmail method
 func (s *UserRepositorySuite) TestGetByEmail() {
 	s.Run("Success", func() {
-		user := &domain.User{
-			ID:       "1",
+		user := &database.UserEntity{
+			ID:       primitive.NewObjectID(),
 			Username: "Abebe",
 			Email:    "abebe@example.com",
 			Role:     "user",
 		}
 		_, err := s.database.Collection("users").InsertOne(s.ctx, user)
 		s.NoError(err)
-
 		result, err := s.repository.GetByEmail(s.ctx, "abebe@example.com")
-
 		s.NoError(err)
-		s.Equal(user, result)
+		userDomain := database.FromEntityToDomain(user)
+		s.Equal(userDomain, result)
 	})
 
 	s.Run("UserNotFound", func() {
-		result, err := s.repository.GetByEmail(s.ctx, "abebe@example.com")
+		result, err := s.repository.GetByEmail(s.ctx, "kebede@example.com")
 
 		s.Error(err)
 		s.Contains(err.Error(), "user not found")
@@ -240,8 +254,8 @@ func (s *UserRepositorySuite) TestGetByEmail() {
 // TestGetUserFromContext tests the GetUserFromContext method
 func (s *UserRepositorySuite) TestGetUserFromContext() {
 	s.Run("Success", func() {
-		user := &domain.User{
-			ID:       "1",
+		user := &database.UserEntity{
+			ID:       primitive.NewObjectID(),
 			Username: "Abebe",
 			Email:    "abebe@example.com",
 			Role:     "user",
@@ -253,13 +267,13 @@ func (s *UserRepositorySuite) TestGetUserFromContext() {
 		c.Set("username", "Abebe")
 
 		result := s.repository.GetUserFromContext(c)
-
-		s.Equal(user, result)
+		userDomain := database.FromEntityToDomain(user)
+		s.Equal(userDomain, result)
 	})
 
 	s.Run("UserNotFound", func() {
 		c, _ := gin.CreateTestContext(nil)
-		c.Set("username", "Abebe")
+		c.Set("username", "Kebede")
 
 		result := s.repository.GetUserFromContext(c)
 
@@ -274,10 +288,4 @@ func (s *UserRepositorySuite) TestGetUserFromContext() {
 
 		s.Nil(result)
 	})
-}
-
-func (s *UserRepositorySuite) DropTable() {
-	if err := s.database.Drop(s.ctx); err != nil {
-		s.T().Fatalf("Failed to drop test database: %v", err)
-	}
 }

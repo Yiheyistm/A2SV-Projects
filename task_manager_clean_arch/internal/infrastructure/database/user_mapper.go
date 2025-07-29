@@ -1,10 +1,15 @@
 package database
 
 import (
+	"errors"
+
 	"github.com/yiheyistm/task_manager/internal/domain"
 )
 
 func FromDomainToEntity(u *domain.User) (*UserEntity, error) {
+	if u == nil {
+		return nil, errors.New("user cannot be nil")
+	}
 	return &UserEntity{
 		Username: u.Username,
 		Email:    u.Email,

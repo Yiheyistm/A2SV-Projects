@@ -40,14 +40,14 @@ func (s *UserRepositoryImpl) Insert(ctx context.Context, user *domain.User) erro
 }
 
 func (s *UserRepositoryImpl) GetAll(ctx context.Context) ([]domain.User, error) {
-	var users []domain.User
+	var users []database.UserEntity
 	cursor, err := s.DB.Collection(s.Collection).Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 	for cursor.Next(ctx) {
-		var user domain.User
+		var user database.UserEntity
 		if err := cursor.Decode(&user); err != nil {
 			return nil, err
 		}
@@ -56,12 +56,12 @@ func (s *UserRepositoryImpl) GetAll(ctx context.Context) ([]domain.User, error) 
 	if err := cursor.Err(); err != nil {
 		return nil, err
 	}
-	return users, nil
+	return database.FromEntityListToDomainList(users), nil
 }
 
 func (s *UserRepositoryImpl) GetUser(ctx context.Context, key, value string) (*domain.User, error) {
 
-	var user domain.User
+	var user database.UserEntity
 	filter := bson.M{key: value}
 	err := s.DB.Collection(s.Collection).FindOne(ctx, filter).Decode(&user)
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *UserRepositoryImpl) GetUser(ctx context.Context, key, value string) (*d
 		return nil, err
 	}
 
-	return &user, nil
+	return database.FromEntityToDomain(&user), nil
 }
 
 func (s *UserRepositoryImpl) GetByUsername(ctx context.Context, username string) (*domain.User, error) {

@@ -1,4 +1,4 @@
-package persistence
+package repo
 
 import (
 	"context"
@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/suite"
 	"github.com/yiheyistm/task_manager/config"
 	"github.com/yiheyistm/task_manager/internal/domain"
+	"github.com/yiheyistm/task_manager/internal/infrastructure/database"
 	"github.com/yiheyistm/task_manager/internal/infrastructure/persistence"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -27,6 +29,7 @@ type TaskRepositorySuite struct {
 
 // SetupSuite connects to MongoDB and initializes the client
 func (s *TaskRepositorySuite) SetupSuite() {
+	_ = godotenv.Load("../../../env") // for Testing purpose
 	env := config.Load()
 	DBHostURI := fmt.Sprintf("mongodb+srv://%s:%s@%s.r31b5bc.mongodb.net/?retryWrites=true&w=majority", env.DBUser, env.DBPass, env.DBHost)
 	var err error
@@ -46,11 +49,18 @@ func (s *TaskRepositorySuite) TearDownSuite() {
 
 // SetupTest initializes a unique test database and repository
 func (s *TaskRepositorySuite) SetupTest() {
-	// Create a unique database name using a timestamp
-	dbName := fmt.Sprintf("test_db_%d", time.Now().UnixNano())
+	dbName := "test_db"
 	s.database = s.client.Database(dbName)
 	s.repository = persistence.NewTaskRepository(*s.database, "tasks")
-	s.ctx = context.Background()
+
+	// Create a unique index on the id field
+	indexModel := mongo.IndexModel{
+		Keys: bson.M{"_id": 1}, // Index on the id field
+	}
+	_, err := s.database.Collection("tasks").Indexes().CreateOne(s.ctx, indexModel)
+	if err != nil {
+		s.T().Fatalf("Failed to create index: %v", err)
+	}
 }
 
 // TearDownTest drops the test database to ensure isolation
@@ -67,7 +77,7 @@ func TestTaskRepositorySuite(t *testing.T) {
 
 // TestNewTaskRepository tests the NewTaskRepository function
 func (s *TaskRepositorySuite) TestNewTaskRepository() {
-	s.Run("MerkatoSuccess", func() {
+	s.Run("Success", func() {
 		collection := "tasks"
 		repo := persistence.NewTaskRepository(*s.database, collection)
 
@@ -79,11 +89,12 @@ func (s *TaskRepositorySuite) TestNewTaskRepository() {
 }
 
 // TestGetAll tests the GetAll method
-func (s *TaskRepositorySuite) TestGetAll() {
-	s.Run("MerkatoSuccess", func() {
-		tasks := []domain.Task{
-			{ID: primitive.NewObjectID(), Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"},
-			{ID: primitive.NewObjectID(), Title: "Sell Spices", CreatedBy: "Kebede", Status: "completed"},
+func (s *TaskRepositorySuite) TestGetAllTasks() {
+	s.Run("Success", func() {
+		dueDate := time.Now().Add(48 * time.Hour).Truncate(time.Second).UTC()
+		tasks := []database.TaskEntity{
+			{ID: primitive.NewObjectID(), Title: "Buy Coffee", Description: "Buy coffee from the store", CreatedBy: "Abebe", DueDate: primitive.NewDateTimeFromTime(dueDate), Status: "pending"},
+			{ID: primitive.NewObjectID(), Title: "Sell Spices", Description: "Sell spices at the market", CreatedBy: "Kebede", DueDate: primitive.NewDateTimeFromTime(dueDate), Status: "completed"},
 		}
 		for _, task := range tasks {
 			_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
@@ -91,12 +102,14 @@ func (s *TaskRepositorySuite) TestGetAll() {
 		}
 
 		result, err := s.repository.GetAll(s.ctx)
-
+		taskList := database.FromTaskEntityListToDomainList(tasks)
 		s.NoError(err)
-		s.ElementsMatch(tasks, result)
+		s.ElementsMatch(taskList, result)
 	})
 
 	s.Run("EmptyCollection", func() {
+		_, err := s.database.Collection("tasks").DeleteMany(s.ctx, bson.M{})
+		s.NoError(err)
 		result, err := s.repository.GetAll(s.ctx)
 
 		s.NoError(err)
@@ -106,21 +119,21 @@ func (s *TaskRepositorySuite) TestGetAll() {
 
 // TestGetById tests the GetById method
 func (s *TaskRepositorySuite) TestGetById() {
-	s.Run("MerkatoSuccess", func() {
-		taskID := primitive.NewObjectID()
-		task := domain.Task{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
-		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
+	s.Run("Success", func() {
+		// taskID := primitive.NewObjectID()
+		dueDate := time.Now().Add(48 * time.Hour).Truncate(time.Second).UTC()
+		taskEntity := database.TaskEntity{ID: primitive.NewObjectID(), Title: "Buy Coffee", Description: "Buy coffee from the store", CreatedBy: "Abebe", Status: "pending", DueDate: primitive.NewDateTimeFromTime(dueDate)}
+		_, err := s.database.Collection("tasks").InsertOne(s.ctx, taskEntity)
 		s.NoError(err)
-
-		result, err := s.repository.GetById(s.ctx, taskID.Hex())
-
+		result, err := s.repository.GetById(s.ctx, taskEntity.ID.Hex())
 		s.NoError(err)
+		task := *database.FromTaskEntityToDomain(&taskEntity)
+		task.CreatedBy = taskEntity.CreatedBy
 		s.Equal(task, result)
 	})
 
 	s.Run("InvalidID", func() {
 		result, err := s.repository.GetById(s.ctx, "invalid_id")
-
 		s.Error(err)
 		s.Contains(err.Error(), "invalid ObjectID")
 		s.Equal(domain.Task{}, result)
@@ -138,29 +151,35 @@ func (s *TaskRepositorySuite) TestGetById() {
 
 // TestCreate tests the Create method
 func (s *TaskRepositorySuite) TestCreate() {
-	s.Run("MerkatoSuccess", func() {
-		task := &domain.Task{Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
-
-		err := s.repository.Create(s.ctx, task)
-
+	s.Run("Success", func() {
+		dueDate := time.Now().Add(48 * time.Hour).Truncate(time.Second).UTC()
+		taskEntity := database.TaskEntity{ID: primitive.NewObjectID(), Title: "Buy Coffee", Description: "Buy coffee from the store", CreatedBy: "Abebe", Status: "pending", DueDate: primitive.NewDateTimeFromTime(dueDate)}
+		taskDomain := database.FromTaskEntityToDomain(&taskEntity)
+		err := s.repository.Create(s.ctx, taskDomain)
+		// Ensure the taskDomain is not nil
+		s.NotNil(taskDomain)
 		s.NoError(err)
-		s.NotEqual(primitive.ObjectID{}, task.ID)
+		s.NotEqual(primitive.ObjectID{}, taskDomain.ID)
 
 		// Verify the task was inserted
-		var result domain.Task
-		err = s.database.Collection("tasks").FindOne(s.ctx, bson.M{"_id": task.ID}).Decode(&result)
+		var result database.TaskEntity
+		err = s.database.Collection("tasks").FindOne(s.ctx, bson.M{"_id": taskDomain.ID}).Decode(&result)
 		s.NoError(err)
-		s.Equal(task, &result)
+		s.Equal(taskEntity, result)
 	})
 
 	s.Run("DuplicateKey", func() {
-		task := &domain.Task{ID: primitive.NewObjectID(), Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
+		task := &database.TaskEntity{ID: primitive.NewObjectID(), Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
 		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
 		s.NoError(err)
 
 		// Attempt to insert a task with the same ID
-		duplicateTask := &domain.Task{ID: task.ID, Title: "Sell Spices", CreatedBy: "Abebe", Status: "pending"}
-		err = s.repository.Create(s.ctx, duplicateTask)
+		duplicateTask := &database.TaskEntity{ID: task.ID, Title: "Sell Spices", CreatedBy: "Abebe", Status: "pending"}
+		taskEntity := database.FromTaskEntityToDomain(duplicateTask)
+		// Ensure the taskEntity is not nil
+		s.NotNil(taskEntity)
+		s.NoError(err)
+		err = s.repository.Create(s.ctx, taskEntity)
 
 		s.Error(err)
 		s.Contains(err.Error(), "duplicate key")
@@ -169,19 +188,20 @@ func (s *TaskRepositorySuite) TestCreate() {
 
 // TestUpdate tests the Update method
 func (s *TaskRepositorySuite) TestUpdate() {
-	s.Run("MerkatoSuccess", func() {
+	s.Run("Success", func() {
 		taskID := primitive.NewObjectID()
-		task := &domain.Task{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
+		task := &database.TaskEntity{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
 		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
 		s.NoError(err)
 
-		updatedTask := &domain.Task{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
-		err = s.repository.Update(s.ctx, taskID.Hex(), updatedTask)
+		updatedTask := &database.TaskEntity{ID: taskID, Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
+		taskDomain := database.FromTaskEntityToDomain(updatedTask)
+		err = s.repository.Update(s.ctx, taskID.Hex(), taskDomain)
 
 		s.NoError(err)
 
 		// Verify the update
-		var result domain.Task
+		var result database.TaskEntity
 		err = s.database.Collection("tasks").FindOne(s.ctx, bson.M{"_id": taskID}).Decode(&result)
 		s.NoError(err)
 		s.Equal(updatedTask.Title, result.Title)
@@ -189,8 +209,9 @@ func (s *TaskRepositorySuite) TestUpdate() {
 	})
 
 	s.Run("InvalidID", func() {
-		task := &domain.Task{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
-		err := s.repository.Update(s.ctx, "invalid_id", task)
+		task := &database.TaskEntity{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
+		taskDomain := database.FromTaskEntityToDomain(task)
+		err := s.repository.Update(s.ctx, "invalid_id", taskDomain)
 
 		s.Error(err)
 		s.Contains(err.Error(), "invalid ObjectID")
@@ -198,8 +219,9 @@ func (s *TaskRepositorySuite) TestUpdate() {
 
 	s.Run("NoUpdate", func() {
 		taskID := primitive.NewObjectID()
-		task := &domain.Task{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
-		err := s.repository.Update(s.ctx, taskID.Hex(), task)
+		task := &database.TaskEntity{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
+		taskDomain := database.FromTaskEntityToDomain(task)
+		err := s.repository.Update(s.ctx, taskID.Hex(), taskDomain)
 
 		s.Error(err)
 		s.Contains(err.Error(), "failed to update task or already up to date")
@@ -208,9 +230,9 @@ func (s *TaskRepositorySuite) TestUpdate() {
 
 // TestDelete tests the Delete method
 func (s *TaskRepositorySuite) TestDelete() {
-	s.Run("MerkatoSuccess", func() {
+	s.Run("Success", func() {
 		taskID := primitive.NewObjectID()
-		task := domain.Task{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
+		task := database.TaskEntity{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
 		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
 		s.NoError(err)
 
@@ -242,8 +264,8 @@ func (s *TaskRepositorySuite) TestDelete() {
 
 // TestGetTaskCountByStatus tests the GetTaskCountByStatus method
 func (s *TaskRepositorySuite) TestGetTaskCountByStatus() {
-	s.Run("MerkatoSuccess", func() {
-		tasks := []domain.Task{
+	s.Run("Success", func() {
+		tasks := []database.TaskEntity{
 			{ID: primitive.NewObjectID(), Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"},
 			{ID: primitive.NewObjectID(), Title: "Sell Spices", CreatedBy: "Abebe", Status: "pending"},
 			{ID: primitive.NewObjectID(), Title: "Brew Coffee", CreatedBy: "Kebede", Status: "completed"},
@@ -264,6 +286,8 @@ func (s *TaskRepositorySuite) TestGetTaskCountByStatus() {
 	})
 
 	s.Run("EmptyCollection", func() {
+		_, err := s.database.Collection("tasks").DeleteMany(s.ctx, bson.M{})
+		s.NoError(err)
 		result, err := s.repository.GetTaskCountByStatus(s.ctx)
 
 		s.NoError(err)
@@ -273,8 +297,8 @@ func (s *TaskRepositorySuite) TestGetTaskCountByStatus() {
 
 // TestGetByUser tests the GetByUser method
 func (s *TaskRepositorySuite) TestGetByUser() {
-	s.Run("MerkatoSuccess", func() {
-		tasks := []domain.Task{
+	s.Run("Success", func() {
+		tasks := []database.TaskEntity{
 			{ID: primitive.NewObjectID(), Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"},
 			{ID: primitive.NewObjectID(), Title: "Sell Spices", CreatedBy: "Abebe", Status: "completed"},
 			{ID: primitive.NewObjectID(), Title: "Brew Coffee", CreatedBy: "Kebede", Status: "pending"},
@@ -285,14 +309,14 @@ func (s *TaskRepositorySuite) TestGetByUser() {
 		}
 
 		result, err := s.repository.GetByUser(s.ctx, "Abebe")
-
+		taskList := database.FromTaskEntityListToDomainList(tasks[:2]) // Only Abebe's tasks
 		s.NoError(err)
 		s.Len(result, 2)
-		s.ElementsMatch([]domain.Task{tasks[0], tasks[1]}, result)
+		s.ElementsMatch(taskList, result)
 	})
 
 	s.Run("NoTasks", func() {
-		result, err := s.repository.GetByUser(s.ctx, "Abebe")
+		result, err := s.repository.GetByUser(s.ctx, "Samson")
 
 		s.NoError(err)
 		s.Empty(result)
@@ -301,16 +325,16 @@ func (s *TaskRepositorySuite) TestGetByUser() {
 
 // TestGetByIdAndUser tests the GetByIdAndUser method
 func (s *TaskRepositorySuite) TestGetByIdAndUser() {
-	s.Run("MerkatoSuccess", func() {
+	s.Run("Success", func() {
 		taskID := primitive.NewObjectID()
-		task := domain.Task{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
+		task := database.TaskEntity{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
 		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
 		s.NoError(err)
 
 		result, err := s.repository.GetByIdAndUser(s.ctx, taskID.Hex(), "Abebe")
-
+		taskDomain := database.FromTaskEntityToDomain(&task)
 		s.NoError(err)
-		s.Equal(task, result)
+		s.Equal(taskDomain, &result)
 	})
 
 	s.Run("InvalidID", func() {
@@ -323,7 +347,7 @@ func (s *TaskRepositorySuite) TestGetByIdAndUser() {
 
 	s.Run("TaskNotFound", func() {
 		taskID := primitive.NewObjectID()
-		result, err := s.repository.GetByIdAndUser(s.ctx, taskID.Hex(), "Abebe")
+		result, err := s.repository.GetByIdAndUser(s.ctx, taskID.Hex(), "samson")
 
 		s.Error(err)
 		s.Contains(err.Error(), "task not found")
@@ -333,29 +357,31 @@ func (s *TaskRepositorySuite) TestGetByIdAndUser() {
 
 // TestUpdateByIdAndUser tests the UpdateByIdAndUser method
 func (s *TaskRepositorySuite) TestUpdateByIdAndUser() {
-	s.Run("MerkatoSuccess", func() {
+	s.Run("Success", func() {
 		taskID := primitive.NewObjectID()
-		task := &domain.Task{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
+		task := &database.TaskEntity{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
 		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
 		s.NoError(err)
 
-		updatedTask := &domain.Task{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
-		err = s.repository.UpdateByIdAndUser(s.ctx, taskID.Hex(), updatedTask, "Abebe")
+		updatedTask := &database.TaskEntity{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
+		updatedTaskDomain := database.FromTaskEntityToDomain(updatedTask)
+		err = s.repository.UpdateByIdAndUser(s.ctx, taskID.Hex(), updatedTaskDomain, "Abebe")
 
 		s.NoError(err)
-		s.Equal(taskID, updatedTask.ID)
+		s.Equal(taskID, updatedTaskDomain.ID)
 
 		// Verify the update
-		var result domain.Task
+		var result database.TaskEntity
 		err = s.database.Collection("tasks").FindOne(s.ctx, bson.M{"_id": taskID}).Decode(&result)
 		s.NoError(err)
-		s.Equal(updatedTask.Title, result.Title)
-		s.Equal(updatedTask.Status, result.Status)
+		s.Equal(updatedTaskDomain.Title, result.Title)
+		s.Equal(updatedTaskDomain.Status, result.Status)
 	})
 
 	s.Run("InvalidID", func() {
-		task := &domain.Task{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
-		err := s.repository.UpdateByIdAndUser(s.ctx, "invalid_id", task, "Abebe")
+		task := &database.TaskEntity{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
+		taskDomain := database.FromTaskEntityToDomain(task)
+		err := s.repository.UpdateByIdAndUser(s.ctx, "invalid_id", taskDomain, "Abebe")
 
 		s.Error(err)
 		s.Contains(err.Error(), "invalid ObjectID")
@@ -363,8 +389,13 @@ func (s *TaskRepositorySuite) TestUpdateByIdAndUser() {
 
 	s.Run("NoUpdate", func() {
 		taskID := primitive.NewObjectID()
-		task := &domain.Task{Title: "Buy Spices", CreatedBy: "Abebe", Status: "completed"}
-		err := s.repository.UpdateByIdAndUser(s.ctx, taskID.Hex(), task, "Abebe")
+		task := &database.TaskEntity{ID: taskID, Title: "Buy Spices", CreatedBy: "Abebe", Status: "pending"}
+		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
+		s.NoError(err)
+
+		updatedTask := &database.TaskEntity{Title: "Buy Spices", CreatedBy: "Abebe", Status: "pending"}
+		taskDomain := database.FromTaskEntityToDomain(updatedTask)
+		err = s.repository.UpdateByIdAndUser(s.ctx, taskID.Hex(), taskDomain, "Abebe")
 
 		s.Error(err)
 		s.Contains(err.Error(), "failed to update task or task not found for user")
@@ -373,9 +404,9 @@ func (s *TaskRepositorySuite) TestUpdateByIdAndUser() {
 
 // TestDeleteByIdAndUser tests the DeleteByIdAndUser method
 func (s *TaskRepositorySuite) TestDeleteByIdAndUser() {
-	s.Run("MerkatoSuccess", func() {
+	s.Run("Success", func() {
 		taskID := primitive.NewObjectID()
-		task := domain.Task{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
+		task := database.TaskEntity{ID: taskID, Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"}
 		_, err := s.database.Collection("tasks").InsertOne(s.ctx, task)
 		s.NoError(err)
 
@@ -407,8 +438,8 @@ func (s *TaskRepositorySuite) TestDeleteByIdAndUser() {
 
 // TestGetTaskStatsByUser tests the GetTaskStatsByUser method
 func (s *TaskRepositorySuite) TestGetTaskStatsByUser() {
-	s.Run("MerkatoSuccess", func() {
-		tasks := []domain.Task{
+	s.Run("Success", func() {
+		tasks := []database.TaskEntity{
 			{ID: primitive.NewObjectID(), Title: "Buy Coffee", CreatedBy: "Abebe", Status: "pending"},
 			{ID: primitive.NewObjectID(), Title: "Sell Spices", CreatedBy: "Abebe", Status: "pending"},
 			{ID: primitive.NewObjectID(), Title: "Brew Coffee", CreatedBy: "Abebe", Status: "completed"},
@@ -430,7 +461,7 @@ func (s *TaskRepositorySuite) TestGetTaskStatsByUser() {
 	})
 
 	s.Run("NoTasks", func() {
-		result, err := s.repository.GetTaskStatsByUser(s.ctx, "Abebe")
+		result, err := s.repository.GetTaskStatsByUser(s.ctx, "samson")
 
 		s.NoError(err)
 		s.Empty(result)
