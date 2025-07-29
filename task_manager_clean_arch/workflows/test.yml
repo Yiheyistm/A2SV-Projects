@@ -1,0 +1,32 @@
+name: Go Test and Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+
+      - name: Download dependencies
+        run: go mod tidy
+
+      - name: Run tests with coverage
+        run: go test -coverprofile=coverage.out ./...
+
+      - name: Check test coverage threshold
+        run: |
+          go tool cover -func=coverage.out
+          threshold=80.0
+          actual=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "Actual coverage: $actual%"
+          awk -v actual="$actual" -v threshold="$threshold" 'BEGIN { if (actual < threshold) exit 1 }'
